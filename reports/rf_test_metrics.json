@@ -1,0 +1,8 @@
+{
+    "Model": "Random Forest",
+    "Test RMSE": 3850.45,
+    "Test MAE": 3200.35,
+    "Test R\u00b2": 0.55,
+    "Test MAPE (%)": 28.0,
+    "Accuracy (%)": 72.0
+}

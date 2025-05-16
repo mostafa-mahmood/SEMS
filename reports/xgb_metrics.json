@@ -1,0 +1,8 @@
+{
+    "Model": "XGBoost",
+    "Test RMSE": 2100.75,
+    "Test MAE": 1750.3,
+    "Test R\u00b2": 0.62,
+    "Test MAPE (%)": 22.8,
+    "Accuracy (%)": 70.2
+}
