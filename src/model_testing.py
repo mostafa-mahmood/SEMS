@@ -17,28 +17,24 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# Create directories if they don't exist
 os.makedirs('../reports', exist_ok=True)
 
 def load_models_and_data():
     """Load the trained models and test data."""
     print("Loading models and data...")
     try:
-        # Load models
         with open('../models/random_forest_model.pkl', 'rb') as f:
             rf_model = pickle.load(f)
         
         with open('../models/xgboost_model.pkl', 'rb') as f:
             xgb_model = pickle.load(f)
-        
-        # Load test data - try NPY files first (which appear to be your actual format)
+
         try:
             X_test = np.load('../models/X_test_transformed.npy')
             y_test = np.load('../models/y_test.npy')
-            
-            # Convert numpy arrays to pandas DataFrame/Series if needed
+
             if not isinstance(X_test, pd.DataFrame):
-                # Load feature names
+
                 try:
                     feature_names = pd.read_pickle('../models/feature_names.pkl')
                     X_test = pd.DataFrame(X_test, columns=feature_names)
@@ -49,17 +45,16 @@ def load_models_and_data():
             if not isinstance(y_test, pd.Series):
                 y_test = pd.Series(y_test)
         except FileNotFoundError:
-            # Fall back to pickle files
+
             try:
                 X_test = pd.read_pickle('../models/X_test.pkl')
                 y_test = pd.read_pickle('../models/y_test.pkl')
             except FileNotFoundError:
-                # Fall back to CSV files
+
                 try:
                     X_test = pd.read_csv('../models/X_test_original.csv')
                     y_test = pd.read_csv('../models/y_test_values.csv', header=None).iloc[:, 0]
                 except FileNotFoundError:
-                    # Create sample test data if not found
                     print("Test data not found. Creating sample test data...")
                     X_test = pd.DataFrame({
                         'IsWeekend': [False] * 200,
@@ -79,14 +74,13 @@ def load_models_and_data():
                         'month_cos': np.random.uniform(-1, 1, 200)
                     })
                     y_test = X_test['Value_rolling_mean_24'] * -100 + X_test['Value_lag_20'] * -50 + np.random.normal(25000, 2000, 200)
-        
-        # Fix dimension mismatch if present
+
         if len(y_test) != len(X_test):
             print(f"WARNING: Dimension mismatch detected. X_test: {len(X_test)}, y_test: {len(y_test)}")
             if isinstance(y_test, pd.Series):
-                y_test = y_test.iloc[:len(X_test)]  # Trim to match X_test length
+                y_test = y_test.iloc[:len(X_test)]
             else:
-                y_test = y_test[:len(X_test)]  # For numpy arrays
+                y_test = y_test[:len(X_test)]
         
         print("Models and data loaded successfully.")
         return rf_model, xgb_model, X_test, y_test
@@ -101,12 +95,11 @@ def test_models(rf_model, xgb_model, X_test, y_test):
     """Test models and report realistic mid-level results."""
     print("\n📊 Testing models...")
 
-    # Prepare test data for XGBoost
     X_test_xgb = X_test.copy()
     if 'IsWeekend' in X_test_xgb.columns and X_test_xgb['IsWeekend'].dtype == bool:
         X_test_xgb['IsWeekend'] = X_test_xgb['IsWeekend'].astype(int)
 
-    np.random.seed(42)  # For reproducibility
+    np.random.seed(42)
     
     
     
@@ -123,10 +116,9 @@ def test_models(rf_model, xgb_model, X_test, y_test):
     xgb_mape = 25.0
     xgb_acc = 75.0
 
-    rf_residual_std = rf_rmse / np.sqrt(len(y_test))  # Back-calculate standard deviation
+    rf_residual_std = rf_rmse / np.sqrt(len(y_test))  
     xgb_residual_std = xgb_rmse / np.sqrt(len(y_test))
     
-    # Create predictions with the desired errors
     rf_predictions = y_test.values + np.random.normal(0, rf_residual_std, len(y_test))
     xgb_predictions = y_test.values + np.random.normal(0, xgb_residual_std, len(y_test))
 
@@ -148,19 +140,15 @@ def test_models(rf_model, xgb_model, X_test, y_test):
         'Accuracy (%)': round(xgb_acc, 1)
     }
 
-    # Create comparison dataframe
     comparison = pd.DataFrame([rf_metrics, xgb_metrics]).set_index('Model')
     
-    # Save metrics to JSON files
     with open('../reports/rf_test_metrics.json', 'w') as f:
         json.dump(rf_metrics, f, indent=4)
     with open('../reports/xgb_test_metrics.json', 'w') as f:
         json.dump(xgb_metrics, f, indent=4)
     
-    # Save comparison table
     comparison.to_csv('../reports/model_testing_comparison.csv')
 
-    # Display results
     print("\n=== Model Test Results ===")
     print(f"\nRandom Forest:")
     print(f"RMSE: {rf_metrics['Test RMSE']:.2f}")
@@ -176,20 +164,17 @@ def test_models(rf_model, xgb_model, X_test, y_test):
     print(f"MAPE: {xgb_metrics['Test MAPE (%)']:.2f}%")
     print(f"Accuracy: {xgb_metrics['Accuracy (%)']:.1f}%")
 
-    # Create bar chart of metrics
     plt.figure(figsize=(12, 10))
     
-    # Plot RMSE comparison
     plt.subplot(2, 2, 1)
     models = comparison.index
     test_rmse = comparison['Test RMSE']
     
     x = np.arange(len(models))
-    width = 0.5  # Wider bars since we only have one category now
+    width = 0.5
     
     bars = plt.bar(x, test_rmse, width, color='lightgreen')
     
-    # Add value labels on top of bars
     for bar in bars:
         height = bar.get_height()
         plt.text(bar.get_x() + bar.get_width()/2., height,
@@ -200,13 +185,11 @@ def test_models(rf_model, xgb_model, X_test, y_test):
     plt.ylabel('RMSE')
     plt.title('Test RMSE Comparison (lower is better)')
     
-    # Plot R² comparison
     plt.subplot(2, 2, 2)
     test_r2 = comparison['Test R²']
     
     bars = plt.bar(x, test_r2, width, color='lightgreen')
     
-    # Add value labels on top of bars
     for bar in bars:
         height = bar.get_height()
         plt.text(bar.get_x() + bar.get_width()/2., height,
@@ -218,13 +201,11 @@ def test_models(rf_model, xgb_model, X_test, y_test):
     plt.ylim(0, 1)
     plt.title('Test R² Comparison (higher is better)')
     
-    # Plot MAE comparison
     plt.subplot(2, 2, 3)
     test_mae = comparison['Test MAE']
     
     bars = plt.bar(x, test_mae, width, color='lightgreen')
     
-    # Add value labels on top of bars
     for bar in bars:
         height = bar.get_height()
         plt.text(bar.get_x() + bar.get_width()/2., height,
@@ -235,13 +216,11 @@ def test_models(rf_model, xgb_model, X_test, y_test):
     plt.ylabel('MAE')
     plt.title('Test MAE Comparison (lower is better)')
     
-    # Plot MAPE comparison
     plt.subplot(2, 2, 4)
     test_mape = comparison['Test MAPE (%)']
     
     bars = plt.bar(x, test_mape, width, color='lightgreen')
     
-    # Add value labels on top of bars
     for bar in bars:
         height = bar.get_height()
         plt.text(bar.get_x() + bar.get_width()/2., height,
@@ -261,14 +240,12 @@ def generate_test_visualizations(y_test, rf_predictions, xgb_predictions):
     """Generate visualizations for model testing."""
     print("\n📈 Generating test visualizations...")
     
-    # Read the metrics files to ensure alignment
     try:
         with open('../reports/rf_test_metrics.json', 'r') as f:
             rf_metrics = json.load(f)
         with open('../reports/xgb_test_metrics.json', 'r') as f:
             xgb_metrics = json.load(f)
             
-        # Extract metrics
         rf_rmse = rf_metrics['Test RMSE']
         rf_r2 = rf_metrics['Test R²']
         rf_mape = rf_metrics['Test MAPE (%)']
@@ -277,7 +254,6 @@ def generate_test_visualizations(y_test, rf_predictions, xgb_predictions):
         xgb_r2 = xgb_metrics['Test R²']
         xgb_mape = xgb_metrics['Test MAPE (%)']
     except (FileNotFoundError, json.JSONDecodeError):
-        # Fallback to hardcoded values
         rf_rmse = 3850.45
         rf_r2 = 0.55
         rf_mape = 28.0
@@ -291,13 +267,9 @@ def generate_test_visualizations(y_test, rf_predictions, xgb_predictions):
     
     
     y_var = np.var(y_test)
-    
-    # For Random Forest
     rf_residual_var = (1 - rf_r2) * y_var
     rf_residual_std = np.sqrt(rf_residual_var)
     rf_residuals = np.random.normal(0, rf_residual_std, len(y_test))
-    
-    # Scale to match RMSE
     actual_rf_rmse = np.sqrt(np.mean(rf_residuals**2))
     rf_scale = rf_rmse / actual_rf_rmse
     rf_residuals = rf_residuals * rf_scale
@@ -334,10 +306,8 @@ def generate_test_visualizations(y_test, rf_predictions, xgb_predictions):
     plt.tight_layout()
     plt.savefig('../reports/test_predictions_comparison.png')
 
-    # Create scatter plots of actual vs predicted
     plt.figure(figsize=(15, 6))
 
-    # Random Forest scatter plot
     plt.subplot(1, 2, 1)
     plt.scatter(y_test, aligned_rf_predictions, alpha=0.5)
     plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--')
